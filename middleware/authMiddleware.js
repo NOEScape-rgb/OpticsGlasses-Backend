@@ -60,7 +60,7 @@ const verifyUser = (req, res, next) => {
 
 const verifyAdmin = (req, res, next) => {
   verifyToken(req, res, () => {
-    if (req.user.role === "admin" || req.user.isAdmin === true) {
+    if (req.user.role === "admin") {
       next();
     } else {
       res.status(403).json({ msg: "Forbidden: Admin access required" });

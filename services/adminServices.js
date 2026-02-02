@@ -1,12 +1,12 @@
 const bcrypt = require("bcryptjs");
 const { signToken, tempToken } = require("../utils/jwt");
-const User = require("../models/User");
+const Admin = require("../models/Admin");
 const sendMail = require('../utils/email');
 
 // Admin Login
 const getAdmin = async (email, password) => {
-  // 1. Check if admin exists
-  const admin = await User.findOne({ email, isAdmin: true }).select("+password");
+  // 1. Check if admin exists in Admin collection
+  const admin = await Admin.findOne({ email });
 
   // ERROR MESSAGE MUST MATCH CONTROLLER: "Admin account not found"
   if (!admin) throw new Error("Admin account not found");
@@ -17,7 +17,7 @@ const getAdmin = async (email, password) => {
   // ERROR MESSAGE MUST MATCH CONTROLLER: "Invalid credentials"
   if (!isMatch) throw new Error("Invalid credentials");
 
-  // 3. Sign Token (Added 'role: admin' for security middleware)
+  // 3. Sign Token
   const token = signToken({
     id: admin._id,
     role: "admin",
@@ -33,18 +33,17 @@ const getAdmin = async (email, password) => {
       username: admin.username,
       email: admin.email,
       name: admin.name,
-      role: "admin"
+      role: "admin",
+      avatarUrl: admin.avatarUrl
     },
   };
 };
-
-
 
 const { forgotPasswordTemplate } = require("../utils/emailTemplates");
 
 // Forgot Password (Send Reset Email)
 const forgotPassword = async (email) => {
-  const admin = await User.findOne({ email, isAdmin: true });
+  const admin = await Admin.findOne({ email });
 
   // Controller handles this error securely, but we must throw it here
   if (!admin) throw new Error("User not found");
@@ -72,7 +71,7 @@ const forgotPassword = async (email) => {
 
 // Change Password (Authenticated)
 const changePassword = async (adminId, newPassword) => {
-  const admin = await User.findOne({ _id: adminId, isAdmin: true });
+  const admin = await Admin.findById(adminId);
   if (!admin) throw new Error("User not found");
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
