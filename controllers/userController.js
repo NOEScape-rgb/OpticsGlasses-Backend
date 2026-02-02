@@ -265,18 +265,6 @@ const getProfileController = (req, res) => {
   });
 };
 
-module.exports = {
-  createUserController,
-  updateUserController,
-  resetPasswordUserController,
-  getUserController,
-  logoutController,
-  forgotPasswordController,
-  getProfileController,
-  changePasswordController,
-  getAllUsersController
-};
-
 // Get All Users
 const getAllUsersController = async (req, res) => {
   try {
@@ -294,4 +282,16 @@ const getAllUsersController = async (req, res) => {
       data: null,
     });
   }
+};
+
+module.exports = {
+  createUserController,
+  updateUserController,
+  resetPasswordUserController,
+  getUserController,
+  logoutController,
+  forgotPasswordController,
+  getProfileController,
+  changePasswordController,
+  getAllUsersController
 };
