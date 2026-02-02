@@ -129,16 +129,6 @@ const changePassword = async (userId, newPassword) => {
   return user;
 };
 
-module.exports = {
-  getUser,
-  reset,
-  createUser,
-  updateUser,
-  forgotPassword,
-  changePassword,
-  getAllUsers,
-};
-
 // Get all users with filtering, sorting, and pagination
 const getAllUsers = async (queryString) => {
   // 1. Filtering
@@ -178,4 +168,14 @@ const getAllUsers = async (queryString) => {
 
   const users = await query;
   return users;
+};
+
+module.exports = {
+  getUser,
+  reset,
+  createUser,
+  updateUser,
+  forgotPassword,
+  changePassword,
+  getAllUsers,
 };
