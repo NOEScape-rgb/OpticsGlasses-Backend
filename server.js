@@ -9,8 +9,16 @@ const PORT = process.env.PORT || 3000;
 // Correct typing for Express app
 const app = express();
 
-app.use(cors());
+const cookieParser = require("cookie-parser");
+
+app.use(
+  cors({
+    origin: [process.env.FRONT_END_URL, "http://localhost:5173", "http://localhost:5174"], // Allow local dev ports
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 const path = require("path");
