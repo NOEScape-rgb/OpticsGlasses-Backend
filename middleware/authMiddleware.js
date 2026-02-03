@@ -59,13 +59,31 @@ const verifyUser = (req, res, next) => {
 
 
 const verifyAdmin = (req, res, next) => {
-  verifyToken(req, res, () => {
-    if (req.user.role === "admin") {
-      next();
-    } else {
-      res.status(403).json({ msg: "Forbidden: Admin access required" });
+  const authHeader = req.headers.authorization;
+  let token;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else {
+    token = req.cookies?.token;
+  }
+
+  if (!token) {
+    return res.status(401).json({ msg: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY);
+    req.user = decoded;
+
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ msg: "Forbidden: Admin access required" });
     }
-  });
+
+    next();
+  } catch (err) {
+    return res.status(401).json({ msg: "Invalid or expired token" });
+  }
 };
 
 module.exports = {
