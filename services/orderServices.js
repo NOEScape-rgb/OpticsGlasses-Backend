@@ -1,7 +1,9 @@
 const Order = require("../models/Order");
-
 const Product = require("../models/Product");
 const Store = require("../models/Store");
+const User = require("../models/User");
+const inventoryServices = require("./inventoryServices");
+const { sendOrderConfirmation, sendOrderStatusUpdate, sendShippingNotification } = require("../utils/email");
 
 // Create a new order with server-side calculation
 const createOrder = async (orderData) => {
@@ -28,7 +30,6 @@ const createOrder = async (orderData) => {
         }
 
         // Determine Price (Use Sale Price if active/exists)
-        // Ensure to handle cases where salePrice might be 0 or undefined
         const finalPrice = (product.salePrice && product.salePrice > 0) ? product.salePrice : product.price;
 
         const itemTotal = finalPrice * item.quantity;
@@ -39,15 +40,15 @@ const createOrder = async (orderData) => {
             name: product.name,
             sku: product.sku,
             quantity: item.quantity,
-            price: finalPrice
+            price: finalPrice,
+            image: product.mainImage || product.images?.[0] || '/default-product.jpg'
         });
     }
 
     // 2. Calculate Shipping based on Store Config
     let shippingCost = 0;
-    const storeConfig = await Store.findOne(); // Singleton
+    const storeConfig = await Store.findOne();
 
-    // Default fallback values if store config is messing
     const freeThreshold = storeConfig?.shipping?.freeThreshold || 50;
     const standardRate = storeConfig?.shipping?.standardRate || 10;
 
@@ -58,19 +59,72 @@ const createOrder = async (orderData) => {
     }
 
     // 3. Calculate Final Total
-    // Tax logic could be added here (e.g., from Store config or 3rd party)
     const tax = 0;
     const total = calculatedSubtotal + tax + shippingCost;
 
     // 4. Create Order
     const order = await Order.create({
-        ...orderData, // Include customer, etc.
-        items: orderItems, // Override items with secure ones
-        subtotal: calculatedSubtotal, // Secure subtotal
+        ...orderData,
+        items: orderItems,
+        subtotal: calculatedSubtotal,
         tax: tax,
-        shippingCost: shippingCost, // Secure shipping
-        total: total // Secure total
+        shippingCost: shippingCost,
+        total: total
     });
+
+    // 5. Update inventory after successful order creation
+    try {
+        await inventoryServices.updateMultipleProductStock(orderItems, 'decrease');
+    } catch (inventoryError) {
+        // If inventory update fails, we should rollback the order
+        await Order.findByIdAndDelete(order._id);
+        throw new Error(`Order creation failed due to inventory error: ${inventoryError.message}`);
+    }
+
+    // 6. Send order confirmation email
+    try {
+        const user = await User.findById(orderData.customer);
+        if (user && user.email) {
+            await sendOrderConfirmation(user.email, order);
+        }
+    } catch (emailError) {
+        console.error('Failed to send order confirmation email:', emailError);
+        // Don't fail the order creation if email fails
+    }
+
+    return order;
+};
+
+// Update order with email notifications
+const updateOrder = async (id, updateData) => {
+    const oldOrder = await Order.findById(id);
+    if (!oldOrder) {
+        throw new Error("Order not found");
+    }
+
+    const order = await Order.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true,
+    });
+
+    // Send email notifications for status changes
+    try {
+        const user = await User.findById(order.customer);
+        if (user && user.email) {
+            // If status changed, send status update email
+            if (updateData.status && updateData.status !== oldOrder.status) {
+                await sendOrderStatusUpdate(user.email, order);
+            }
+
+            // If tracking info added and status is shipped, send shipping notification
+            if (updateData.tracking && updateData.status === 'Shipped') {
+                await sendShippingNotification(user.email, order);
+            }
+        }
+    } catch (emailError) {
+        console.error('Failed to send order update email:', emailError);
+        // Don't fail the update if email fails
+    }
 
     return order;
 };
@@ -126,13 +180,35 @@ const getOrderById = async (id) => {
 
 // Update order (e.g., status, tracking)
 const updateOrder = async (id, updateData) => {
+    const oldOrder = await Order.findById(id);
+    if (!oldOrder) {
+        throw new Error("Order not found");
+    }
+
     const order = await Order.findByIdAndUpdate(id, updateData, {
         new: true,
         runValidators: true,
     });
-    if (!order) {
-        throw new Error("Order not found");
+
+    // Send email notifications for status changes
+    try {
+        const user = await User.findById(order.customer);
+        if (user && user.email) {
+            // If status changed, send status update email
+            if (updateData.status && updateData.status !== oldOrder.status) {
+                await sendOrderStatusUpdate(user.email, order);
+            }
+
+            // If tracking info added and status is shipped, send shipping notification
+            if (updateData.tracking && updateData.status === 'Shipped') {
+                await sendShippingNotification(user.email, order);
+            }
+        }
+    } catch (emailError) {
+        console.error('Failed to send order update email:', emailError);
+        // Don't fail the update if email fails
     }
+
     return order;
 };
 

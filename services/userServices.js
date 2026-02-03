@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { signToken, tempToken } = require("../utils/jwt");
 const User = require("../models/User");
-const sendMail = require('../utils/email');
+const { sendMail, sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
 
 // Signin user (Login)
 const getUser = async (email, password) => {
@@ -64,6 +64,14 @@ const createUser = async ({ username, email, password, name }) => {
     name: user.name,
   });
 
+  // Send welcome email
+  try {
+    await sendWelcomeEmail(user.email, { name: user.name, email: user.email });
+  } catch (emailError) {
+    console.error('Failed to send welcome email:', emailError);
+    // Don't fail user creation if email fails
+  }
+
   return {
     token,
     user: {
@@ -92,8 +100,6 @@ const updateUser = async (username, updateData) => {
   return user;
 };
 
-const { forgotPasswordTemplate } = require("../utils/emailTemplates");
-
 // Generate temp reset token and send email
 const forgotPassword = async (email) => {
   const user = await User.findOne({ email });
@@ -101,20 +107,10 @@ const forgotPassword = async (email) => {
 
   // generate JWT token, expires in 15 minutes
   const token = tempToken({ id: user._id, username: user.username });
-  const subject = "Password reset link";
   const resetLink = `${process.env.FRONT_END_URL}/reset-password?token=${token}`;
-  const message = `
-      You requested a password reset.
   
-      Click the link below to reset your password:
-      ${resetLink}
-  
-      This link will expire in 15 minutes.
-    `;
-
-  const html = forgotPasswordTemplate(resetLink);
-  // send token via email
-  return await sendMail(email, subject, message, html);
+  // Send password reset email using new template
+  return await sendPasswordResetEmail(email, { resetLink });
 };
 
 // Securely change password

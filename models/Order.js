@@ -68,6 +68,14 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    paymentIntentId: {
+      type: String,
+      trim: true,
+    },
+    refundId: {
+      type: String,
+      trim: true,
+    },
     shippingAddress: {
       // Snapshot of the shipping address at the time of order
       street: String,
