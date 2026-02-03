@@ -31,6 +31,7 @@ const updateStoreConfigController = async (req, res) => {
         res.status(400).json({
             isStatus: false,
             msg: error.message || "Bad Request",
+            stack: error.stack, // Debugging stack trace
             data: null,
         });
     }

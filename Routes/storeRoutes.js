@@ -5,11 +5,13 @@ const {
     updateStoreConfigController,
     getPublicStoreConfigController
 } = require("../controllers/storeController");
-const { verifyAdmin } = require("../middleware/authMiddleware");
+
+// Import BOTH middlewares
+const { verifyToken, verifyAdmin, verifyAdminToken } = require("../middleware/authMiddleware");
 
 /**
  * @route   GET /api/store/public
- * @desc    Get public store settings (Shipping rates, SEO, etc.)
+ * @desc    Get public store settings
  * @access  Public
  */
 router.get("/public", getPublicStoreConfigController);
@@ -19,13 +21,18 @@ router.get("/public", getPublicStoreConfigController);
  * @desc    Get full store configuration
  * @access  Private (Admin)
  */
-router.get("/", verifyAdmin, getStoreConfigController);
+// 1. verifyAdminToken (Checks: Is this a valid ADMIN user?)
+// 2. verifyAdmin (Checks: Is this user an Admin?)
+// 3. Controller  (Action: Return data)
+router.get("/", verifyAdminToken, verifyAdmin, getStoreConfigController);
 
 /**
  * @route   PATCH /api/store
  * @desc    Update store configuration
  * @access  Private (Admin)
  */
-router.patch("/", verifyAdmin, updateStoreConfigController);
+router.patch("/", verifyAdminToken, verifyAdmin, updateStoreConfigController);
+router.put("/", verifyAdminToken, verifyAdmin, updateStoreConfigController);
+router.post("/", verifyAdminToken, verifyAdmin, updateStoreConfigController);
 
 module.exports = router;

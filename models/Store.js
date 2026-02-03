@@ -125,35 +125,31 @@ const storeSchema = new mongoose.Schema(
 
 // Prevent multiple store documents from being created.
 // This is a schema-level check, but application logic is primary for singleton enforcement.
-storeSchema.pre("save", async function (next) {
-  const existingStore = await this.model("Store").findOne();
-  if (existingStore && !this.isNew) {
-    // If updating an existing document, allow it
-    next();
-  } else if (existingStore && this.isNew) {
-    // If creating a new document and one already exists, throw an error
-    return next(
-      new Error(
-        "Singleton violation: Only one store configuration document can exist.",
-      ),
+storeSchema.pre("save", async function () {
+  const existingStore = await this.constructor.findOne();
+
+  // If creating a new document (this.isNew) and one already exists, throw an error
+  if (existingStore && this.isNew) {
+    throw new Error(
+      "Singleton violation: Only one store configuration document can exist.",
     );
   }
-  next();
 });
 
 // Method to ensure only one default payment method
-storeSchema.pre("save", function (next) {
+storeSchema.pre("save", async function () {
   let defaultCount = 0;
-  this.paymentMethods.forEach((method) => {
-    if (method.isDefault) {
-      defaultCount++;
-    }
-  });
+  if (this.paymentMethods) {
+    this.paymentMethods.forEach((method) => {
+      if (method.isDefault) {
+        defaultCount++;
+      }
+    });
+  }
 
   if (defaultCount > 1) {
-    return next(new Error("Cannot have more than one default payment method."));
+    throw new Error("Cannot have more than one default payment method.");
   }
-  next();
 });
 
 const Store = mongoose.model("Store", storeSchema);

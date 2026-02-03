@@ -93,8 +93,8 @@ const orderSchema = new mongoose.Schema(
   },
 );
 
-// Pre-save hook to generate order number if not provided
-orderSchema.pre("save", async function (next) {
+// Pre-validate hook to generate order number if not provided
+orderSchema.pre("validate", async function () {
   if (this.isNew && !this.orderNumber) {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
@@ -107,11 +107,10 @@ orderSchema.pre("save", async function (next) {
 
     this.orderNumber = `#ORD-${year}${month}${day}-${hours}${minutes}${seconds}-${random}`;
   }
-  next();
 });
 
 // Populate customer and product details on find
-orderSchema.pre(/^find/, function (next) {
+orderSchema.pre(/^find/, async function () {
   this.populate({
     path: "customer",
     select: "firstName lastName email", // Only select relevant user fields
@@ -119,7 +118,6 @@ orderSchema.pre(/^find/, function (next) {
     path: "items.product",
     select: "name sku price mainImage", // Only select relevant product fields
   });
-  next();
 });
 
 const Order = mongoose.model("Order", orderSchema);

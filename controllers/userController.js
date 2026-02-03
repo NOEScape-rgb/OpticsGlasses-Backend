@@ -14,16 +14,24 @@ const createUserController = async (req, res) => {
           msg: "Please provide all required fields (username, email, password, name)",
           data: null,
         });
-    const result = await userServices.createUser({ username, email, password, name }); // Passed 'name'
+    const result = await userServices.createUser({ username, email, password, name });
 
-    // Removed the cookie setting from here
+    // Set HTTP-only cookie for automatic login after signup
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/", // Ensure cookie is available for all routes
+    };
+    res.cookie("token", result.token, cookieOptions);
 
     res
       .status(201)
       .json({
         isStatus: true,
         msg: "User created successfully",
-        data: result.user, // result.user now includes 'name'
+        data: result.user,
       });
   } catch (error) {
     if (error.message === "User already exists") {
@@ -148,14 +156,15 @@ const getUserController = async (req, res) => {
     const result = await userServices.getUser(email, password);
 
     // Set HTTP-only cookie
-    res.cookie("token", result.token, {
+    const cookieOptions = {
       httpOnly: true,
-      // If in production (HTTPS), use Secure. In dev (HTTP), do not.
       secure: process.env.NODE_ENV === "production",
-      // FIX: dynamic sameSite. 'Lax' allows localhost cookies. 'None' is for cross-site prod.
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+      path: "/",
+    };
+    console.log("SETTING TOKEN COOKIE with options:", cookieOptions);
+    res.cookie("token", result.token, cookieOptions);
 
     res
       .status(200)
@@ -187,6 +196,7 @@ const logoutController = (req, res) => {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    path: "/",
   }); // Clear cookie with same options
   res
     .status(200)

@@ -13,7 +13,13 @@ const cookieParser = require("cookie-parser");
 
 app.use(
   cors({
-    origin: [process.env.FRONT_END_URL, "http://localhost:5173", "http://localhost:5174"], // Allow local dev ports
+    origin: [
+      process.env.FRONT_END_URL,
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174"
+    ],
     credentials: true,
   })
 );
@@ -28,8 +34,19 @@ connectDB();
 
 
 
+
 // route
 app.use(allRoutes);
+
+// global error handler - MUST be after routes
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR CAPTURED:", err);
+  res.status(err.status || 500).json({
+    isStatus: false,
+    msg: err.message || "Internal Server Error",
+    stack: err.stack
+  });
+});
 
 // Export the app for Vercel
 module.exports = app;

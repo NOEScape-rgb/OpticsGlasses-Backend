@@ -21,6 +21,7 @@ const createOrderController = async (req, res) => {
         res.status(400).json({
             isStatus: false,
             msg: error.message || "Bad Request",
+            stack: error.stack, // Debugging stack trace
             data: null,
         });
     }
@@ -40,6 +41,7 @@ const getAllOrdersController = async (req, res) => {
         res.status(500).json({
             isStatus: false,
             msg: error.message || "Internal Server Error",
+            stack: error.stack,
             data: null,
         });
     }
@@ -101,6 +103,7 @@ const updateOrderController = async (req, res) => {
         res.status(400).json({
             isStatus: false,
             msg: error.message || "Bad Request",
+            stack: error.stack,
             data: null,
         });
     }
@@ -146,6 +149,7 @@ const getMyOrdersController = async (req, res) => {
         res.status(500).json({
             isStatus: false,
             msg: error.message || "Internal Server Error",
+            stack: error.stack,
             data: null,
         });
     }

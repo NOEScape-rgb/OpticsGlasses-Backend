@@ -82,7 +82,7 @@ reviewSchema.post("findOneAndDelete", async function (doc) {
 });
 
 // Populate product and user details on find
-reviewSchema.pre(/^find/, function (next) {
+reviewSchema.pre(/^find/, async function () {
   this.populate({
     path: "user",
     select: "firstName lastName avatarUrl", // Only select relevant user fields
@@ -90,7 +90,6 @@ reviewSchema.pre(/^find/, function (next) {
     path: "product",
     select: "name mainImage", // Only select relevant product fields
   });
-  next();
 });
 
 const Review = mongoose.model("Review", reviewSchema);

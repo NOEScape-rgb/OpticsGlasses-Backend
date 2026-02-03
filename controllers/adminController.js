@@ -17,12 +17,14 @@ const loginAdminController = async (req, res) => {
     // Cookie configuration
     const isProduction = process.env.NODE_ENV === "production";
 
-    res.cookie("token", result.token, {
+    const cookieOptions = {
       httpOnly: true,
       secure: isProduction, // Secure needs HTTPS
-      sameSite: isProduction ? "none" : undefined, // Undefined lets browser choose default (usually Lax) which is arguably better for localhost
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    };
+    console.log("SETTING ADMIN TOKEN COOKIE with options:", cookieOptions);
+    res.cookie("adminToken", result.token, cookieOptions);
 
     res.status(200).json({
       isStatus: true,
@@ -52,10 +54,10 @@ const logoutAdminController = (req, res) => {
   const isProduction = process.env.NODE_ENV === "production";
 
   // When clearing cookies, options must match the set options (excluding maxAge/expires)
-  res.clearCookie("token", {
+  res.clearCookie("adminToken", {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "none" : undefined,
+    sameSite: isProduction ? "none" : "lax",
   });
 
   res.status(200).json({ isStatus: true, msg: "Logged out successfully", data: null });

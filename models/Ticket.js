@@ -59,12 +59,11 @@ const ticketSchema = new mongoose.Schema(
 );
 
 // Populate user details on find
-ticketSchema.pre(/^find/, function (next) {
+ticketSchema.pre(/^find/, async function () {
   this.populate({
     path: "user",
     select: "firstName lastName email", // Only select relevant user fields
   });
-  next();
 });
 
 const Ticket = mongoose.model("Ticket", ticketSchema);

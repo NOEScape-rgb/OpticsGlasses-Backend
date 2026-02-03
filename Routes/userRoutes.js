@@ -11,7 +11,7 @@ const {
   updateUserController,
   getAllUsersController
 } = require("../controllers/userController");
-const { verifyUser } = require("../middleware/authMiddleware");
+const { verifyToken, verifyUser } = require("../middleware/authMiddleware");
 
 /**
  * @route   POST /api/users/signup
@@ -46,21 +46,21 @@ router.patch("/reset-password", resetPasswordUserController);
  * @desc    Logout user and clear cookie
  * @access  Private
  */
-router.post("/logout", verifyUser, logoutController);
+router.post("/logout", verifyToken, logoutController);
 
 /**
  * @route   PATCH /api/users/change-password
  * @desc    Change password for logged-in user
  * @access  Private
  */
-router.patch("/change-password", verifyUser, changePasswordController);
+router.patch("/change-password", verifyToken, changePasswordController);
 
 /**
  * @route   GET /api/users/me
  * @desc    Get current user profile
  * @access  Private
  */
-router.get("/me", verifyUser, getProfileController);
+router.get("/me", verifyToken, getProfileController);
 
 /**
  * @route   GET /api/users/
@@ -74,6 +74,6 @@ router.get("/", getAllUsersController);
  * @desc    Update user profile by username
  * @access  Private (Self or Admin)
  */
-router.patch("/:username", verifyUser, updateUserController);
+router.patch("/:username", verifyToken, verifyUser, updateUserController);
 
 module.exports = router;

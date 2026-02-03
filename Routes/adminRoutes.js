@@ -6,7 +6,7 @@ const {
   changePasswordController,
   forgotPasswordController,
 } = require("../controllers/adminController");
-const { verifyToken } = require("../middleware/authMiddleware");
+const { verifyToken, verifyAdminToken } = require("../middleware/authMiddleware");
 
 /**
  * @route   POST /api/admin/login
@@ -20,7 +20,7 @@ router.post("/login", loginAdminController);
  * @desc    Logout admin and clear cookie
  * @access  Private
  */
-router.post("/logout", verifyToken, logoutAdminController);
+router.post("/logout", verifyAdminToken, logoutAdminController);
 
 /**
  * @route   POST /api/admin/forgot-password
@@ -34,6 +34,6 @@ router.post("/forgot-password", forgotPasswordController);
  * @desc    Change admin password
  * @access  Private (Requires valid JWT)
  */
-router.put("/change-password", verifyToken, changePasswordController);
+router.put("/change-password", verifyAdminToken, changePasswordController);
 
 module.exports = router;
