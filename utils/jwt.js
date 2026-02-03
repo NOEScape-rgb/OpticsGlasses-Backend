@@ -5,7 +5,7 @@ const EXPIRES_IN = process.env.EXPIRES_IN;
 const signToken = (payload) => {
   return jwt.sign(payload, SECRET_KEY, {
     expiresIn: EXPIRES_IN,
-  });
+  }); 
 };
 
 const verifyToken = (token) => {
