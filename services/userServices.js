@@ -18,7 +18,9 @@ const getUser = async (identifier, password) => {
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new Error("Invalid credentials");
 
-  if (!user.isVerified) {
+  // Check verification status - explicit check for false
+  // Legacy users without isVerified field are treated as verified
+  if (user.isVerified === false) {
     throw new Error("UNVERIFIED_ACCOUNT");
   }
 
