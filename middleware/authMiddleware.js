@@ -118,7 +118,8 @@ const verifyVerification = async (req, res, next) => {
       return res.status(403).json({
         isStatus: false,
         msg: "Please verify your email/phone before performing this action.",
-        requireVerification: true
+        requireVerification: true,
+        identifier: user.email || user.phone  // Return identifier for frontend redirect
       });
     }
 
