@@ -5,8 +5,37 @@ const SMS_GATEWAY_PASS = process.env.SMS_GATEWAY_PASS;
 const SMS_GATEWAY_DEVICE_ID = process.env.SMS_GATEWAY_DEVICE_ID;
 
 /**
+ * Format phone number to international format
+ * Handles Pakistani numbers: 03xx -> +923xx
+ * @param {string} phoneNumber - Raw phone number
+ * @returns {string} - Formatted phone number with country code
+ */
+const formatPhoneNumber = (phoneNumber) => {
+    // Remove any spaces, dashes, or special characters
+    let cleaned = phoneNumber.replace(/[\s\-\(\)]/g, '');
+
+    // Already has + prefix, return as is
+    if (cleaned.startsWith('+')) {
+        return cleaned;
+    }
+
+    // Pakistani number starting with 03 -> +92 3
+    if (cleaned.startsWith('03')) {
+        return '+92' + cleaned.substring(1);
+    }
+
+    // Already has 92 prefix without +
+    if (cleaned.startsWith('92')) {
+        return '+' + cleaned;
+    }
+
+    // Default: add + prefix
+    return '+' + cleaned;
+};
+
+/**
  * Send an SMS message using sms-gate.app
- * @param {string} phoneNumber - The recipient's phone number (with country code, e.g., +923149914203)
+ * @param {string} phoneNumber - The recipient's phone number (with or without country code)
  * @param {string} message - The message text
  * @returns {Promise<Object>} - API response
  */
@@ -14,8 +43,9 @@ const sendSMS = async (phoneNumber, message) => {
     try {
         const authString = Buffer.from(`${SMS_GATEWAY_USER}:${SMS_GATEWAY_PASS}`).toString("base64");
 
-        // Ensure phone number starts with +
-        const formattedPhoneNumber = phoneNumber.startsWith("+") ? phoneNumber : `+${phoneNumber}`;
+        // Format phone number to international format
+        const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+        console.log(`Sending SMS to: ${formattedPhoneNumber}`);
 
         const response = await axios.post(
             "https://api.sms-gate.app/3rdparty/v1/messages",
@@ -32,10 +62,12 @@ const sendSMS = async (phoneNumber, message) => {
             }
         );
 
+        console.log(`SMS sent successfully to: ${formattedPhoneNumber}`);
         return response.data;
     } catch (error) {
         console.error("SMS Sending Error:", error.response?.data || error.message);
-        throw new Error("Failed to send SMS notification");
+        // Don't throw - we want emails to still work even if SMS fails
+        return null;
     }
 };
 
