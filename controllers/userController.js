@@ -17,14 +17,19 @@ const createUserController = async (req, res) => {
     const result = await userServices.createUser({ username, email, password, name });
 
     // Set HTTP-only cookie for automatic login after signup
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: "/", // Ensure cookie is available for all routes
-      domain: process.env.NODE_ENV === "production" ? undefined : undefined, // Let browser handle domain
+    // Helper to get cookie options based on environment/request
+    const getCookieOptions = (req) => {
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      return {
+        httpOnly: true,
+        secure: isSecure, // true on Vercel/HTTPS
+        sameSite: isSecure ? "none" : "lax", // None required for cross-site
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/",
+      };
     };
+
+    const cookieOptions = getCookieOptions(req);
     res.cookie("token", result.token, cookieOptions);
 
     res
@@ -157,14 +162,19 @@ const getUserController = async (req, res) => {
     const result = await userServices.getUser(email, password);
 
     // Set HTTP-only cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: "/",
-      domain: process.env.NODE_ENV === "production" ? undefined : undefined, // Let browser handle domain
+    // Helper to get cookie options based on environment/request (Duplicate logic for now or refactor to shared util)
+    const getCookieOptions = (req) => {
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      return {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: isSecure ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: "/",
+      };
     };
+
+    const cookieOptions = getCookieOptions(req);
     console.log("SETTING TOKEN COOKIE with options:", cookieOptions);
     res.cookie("token", result.token, cookieOptions);
 
@@ -194,10 +204,11 @@ const getUserController = async (req, res) => {
 
 // controller for logging out a user
 const logoutController = (req, res) => {
+  const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.clearCookie("token", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isSecure,
+    sameSite: isSecure ? "none" : "lax",
     path: "/",
   }); // Clear cookie with same options
   res

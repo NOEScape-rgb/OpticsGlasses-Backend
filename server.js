@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 // Correct typing for Express app
 const app = express();
+app.set("trust proxy", 1); // Trust first proxy (required for Vercel/Heroku cookies)
 
 const cookieParser = require("cookie-parser");
 
