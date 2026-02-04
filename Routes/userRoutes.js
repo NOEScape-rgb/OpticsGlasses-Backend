@@ -10,7 +10,9 @@ const {
   getProfileController,
   updateUserController,
   updateMeController,
-  getAllUsersController
+  getAllUsersController,
+  verifyOTPController,
+  resendOTPController
 } = require("../controllers/userController");
 const { verifyToken, verifyUser, verifyAdminToken } = require("../middleware/authMiddleware");
 
@@ -20,6 +22,8 @@ const { verifyToken, verifyUser, verifyAdminToken } = require("../middleware/aut
  * @access  Public
  */
 router.post("/signup", createUserController);
+router.post("/verify-otp", verifyOTPController);
+router.post("/resend-otp", resendOTPController);
 
 /**
  * @route   POST /api/users/login

@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // controller for signUp a user
 const createUserController = async (req, res) => {
   try {
-    const { username, email, password, name } = req.body; // Added 'name'
+    const { username, email, password, name, phone } = req.body; // Added 'name'
     if (!username || !email || !password || !name) // Added 'name' check
       return res
         .status(400)
@@ -14,29 +14,13 @@ const createUserController = async (req, res) => {
           msg: "Please provide all required fields (username, email, password, name)",
           data: null,
         });
-    const result = await userServices.createUser({ username, email, password, name });
-
-    // Set HTTP-only cookie for automatic login after signup
-    // Helper to get cookie options based on environment/request
-    const getCookieOptions = (req) => {
-      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-      return {
-        httpOnly: true,
-        secure: isSecure, // true on Vercel/HTTPS
-        sameSite: isSecure ? "none" : "lax", // None required for cross-site
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: "/",
-      };
-    };
-
-    const cookieOptions = getCookieOptions(req);
-    res.cookie("token", result.token, cookieOptions);
+    const result = await userServices.createUser({ username, email, password, name, phone });
 
     res
       .status(201)
       .json({
         isStatus: true,
-        msg: "User created successfully",
+        msg: "Registration successful. Please check your email or SMS for verification code.",
         data: result.user,
       });
   } catch (error) {
@@ -191,6 +175,14 @@ const getUserController = async (req, res) => {
       return res
         .status(401)
         .json({ isStatus: false, msg: error.message, data: null });
+    }
+    if (error.message === "UNVERIFIED_ACCOUNT") {
+      return res.status(403).json({
+        isStatus: false,
+        msg: "Your account is not verified. Please verify your email/phone.",
+        requireVerification: true,
+        email: email
+      });
     }
     res
       .status(500)
@@ -355,6 +347,55 @@ const updateMeController = async (req, res) => {
   }
 };
 
+const verifyOTPController = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ isStatus: false, msg: "Email and code are required", data: null });
+    }
+
+    const result = await userServices.verifyOTP(email, otp);
+
+    // Set HTTP-only cookie after successful verification
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: isSecure ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    };
+    res.cookie("token", result.token, cookieOptions);
+
+    res.status(200).json({
+      isStatus: true,
+      msg: "Account verified successfully",
+      data: result.user,
+    });
+  } catch (error) {
+    res.status(400).json({ isStatus: false, msg: error.message || "Verification failed", data: null });
+  }
+};
+
+const resendOTPController = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ isStatus: false, msg: "Email is required", data: null });
+    }
+
+    await userServices.resendOTP(email);
+
+    res.status(200).json({
+      isStatus: true,
+      msg: "Verification code resent successfully",
+      data: null,
+    });
+  } catch (error) {
+    res.status(400).json({ isStatus: false, msg: error.message || "Failed to resend code", data: null });
+  }
+};
+
 module.exports = {
   createUserController,
   updateUserController,
@@ -365,5 +406,7 @@ module.exports = {
   forgotPasswordController,
   getProfileController,
   changePasswordController,
-  getAllUsersController
+  getAllUsersController,
+  verifyOTPController,
+  resendOTPController
 };

@@ -8,14 +8,14 @@ const {
     deleteOrderController,
     getMyOrdersController
 } = require("../controllers/orderController");
-const { verifyToken, verifyAdminToken } = require("../middleware/authMiddleware");
+const { verifyToken, verifyAdminToken, verifyVerification } = require("../middleware/authMiddleware");
 
 /**
  * @route   POST /api/orders
  * @desc    Create a new order
  * @access  Private (User)
  */
-router.post("/", verifyToken, createOrderController);
+router.post("/", verifyToken, verifyVerification, createOrderController);
 
 /**
  * @route   GET /api/orders
@@ -29,7 +29,7 @@ router.get("/", verifyAdminToken, getAllOrdersController);
  * @desc    Get logged-in user's orders
  * @access  Private (User)
  */
-router.get("/my-orders", verifyToken, getMyOrdersController);
+router.get("/my-orders", verifyToken, verifyVerification, getMyOrdersController);
 
 /**
  * @route   GET /api/orders/:id

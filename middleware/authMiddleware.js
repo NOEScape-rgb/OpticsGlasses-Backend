@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 const SECRET_KEY = process.env.SECRET_KEY;
 
 if (!SECRET_KEY) {
@@ -101,9 +102,36 @@ const verifyAdminToken = (req, res, next) => {
   }
 };
 
+// 5. Check if user is verified
+const verifyVerification = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ msg: "Not Authenticated" });
+  }
+
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        isStatus: false,
+        msg: "Please verify your email/phone before performing this action.",
+        requireVerification: true
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({ msg: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   verifyToken,
   verifyUser,
   verifyAdmin,
   verifyAdminToken,
+  verifyVerification,
 };

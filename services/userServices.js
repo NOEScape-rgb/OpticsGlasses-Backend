@@ -1,7 +1,10 @@
 const bcrypt = require("bcryptjs");
 const { signToken, tempToken } = require("../utils/jwt");
 const User = require("../models/User");
-const { sendMail, sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendMail, sendWelcomeEmail, sendPasswordResetEmail, sendOTPEmail } = require('../utils/email');
+const { sendSMS, sendOTPSMS } = require('../utils/sms');
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // Signin user (Login)
 const getUser = async (email, password) => {
@@ -10,6 +13,10 @@ const getUser = async (email, password) => {
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new Error("Invalid credentials");
+
+  if (!user.isVerified) {
+    throw new Error("UNVERIFIED_ACCOUNT");
+  }
 
   const token = signToken({
     id: user._id,
@@ -42,7 +49,7 @@ const reset = async (username, password) => {
 };
 
 // Create new user (Signup)
-const createUser = async ({ username, email, password, name }) => {
+const createUser = async ({ username, email, password, name, phone }) => {
   const existingUser = await User.findOne({
     $or: [{ email }, { username }],
   });
@@ -50,12 +57,57 @@ const createUser = async ({ username, email, password, name }) => {
   if (existingUser) throw new Error("User already exists");
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const otp = generateOTP();
+  const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
   const user = await User.create({
     username,
     email,
     name,
+    phone,
     password: hashedPassword,
+    otp,
+    otpExpires,
+    isVerified: false,
   });
+
+  // Send OTP notifications
+  try {
+    if (user.email) {
+      await sendOTPEmail(user.email, otp);
+    }
+    if (user.phone) {
+      await sendOTPSMS(user.phone, otp);
+    }
+  } catch (notificationError) {
+    console.error('Failed to send OTP notifications:', notificationError);
+  }
+
+  return {
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      name: user.name,
+      isVerified: user.isVerified
+    },
+  };
+};
+
+const verifyOTP = async (email, otp) => {
+  const user = await User.findOne({ email }).select("+otp +otpExpires");
+  if (!user) throw new Error("User not found");
+
+  if (user.isVerified) throw new Error("User is already verified");
+
+  if (!user.otp || user.otp !== otp) throw new Error("Invalid verification code");
+
+  if (new Date() > user.otpExpires) throw new Error("Verification code has expired");
+
+  user.isVerified = true;
+  user.otp = undefined;
+  user.otpExpires = undefined;
+  await user.save();
 
   const token = signToken({
     id: user._id,
@@ -64,12 +116,11 @@ const createUser = async ({ username, email, password, name }) => {
     name: user.name,
   });
 
-  // Send welcome email
+  // Send welcome email after verification
   try {
     await sendWelcomeEmail(user.email, { name: user.name, email: user.email });
-  } catch (emailError) {
-    console.error('Failed to send welcome email:', emailError);
-    // Don't fail user creation if email fails
+  } catch (err) {
+    console.error("Welcome email failed after verification:", err);
   }
 
   return {
@@ -81,6 +132,30 @@ const createUser = async ({ username, email, password, name }) => {
       name: user.name,
     },
   };
+};
+
+const resendOTP = async (email) => {
+  const user = await User.findOne({ email });
+  if (!user) throw new Error("User not found");
+
+  if (user.isVerified) throw new Error("User is already verified");
+
+  const otp = generateOTP();
+  const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+  user.otp = otp;
+  user.otpExpires = otpExpires;
+  await user.save();
+
+  try {
+    if (user.email) await sendOTPEmail(user.email, otp);
+    if (user.phone) await sendOTPSMS(user.phone, otp);
+  } catch (notificationError) {
+    console.error('Failed to resend OTP notifications:', notificationError);
+    throw new Error("Failed to send code, please try again later");
+  }
+
+  return true;
 };
 
 const updateUser = async (username, updateData) => {
@@ -108,7 +183,7 @@ const forgotPassword = async (email) => {
   // generate JWT token, expires in 15 minutes
   const token = tempToken({ id: user._id, username: user.username });
   const resetLink = `${process.env.FRONT_END_URL}/reset-password?token=${token}`;
-  
+
   // Send password reset email using new template
   return await sendPasswordResetEmail(email, { resetLink });
 };
@@ -174,4 +249,6 @@ module.exports = {
   forgotPassword,
   changePassword,
   getAllUsers,
+  verifyOTP,
+  resendOTP,
 };

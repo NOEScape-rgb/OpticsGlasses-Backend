@@ -6,6 +6,7 @@ const Coupon = require("../models/Coupon");
 const inventoryServices = require("./inventoryServices");
 const couponServices = require("./couponServices");
 const { sendOrderConfirmation, sendOrderStatusUpdate, sendShippingNotification } = require("../utils/email");
+const { sendOrderConfirmationSMS, sendOrderStatusSMS } = require("../utils/sms");
 
 // Create a new order with server-side calculation
 const createOrder = async (orderData) => {
@@ -153,10 +154,14 @@ const createOrder = async (orderData) => {
             if (user.email) {
                 await sendOrderConfirmation(user.email, order);
             }
+
+            if (user.phone) {
+                await sendOrderConfirmationSMS(user.phone, order);
+            }
         }
-    } catch (emailError) {
-        console.error('Failed to send order confirmation email or update stats:', emailError);
-        // Don't fail the order creation if email fails
+    } catch (notificationError) {
+        console.error('Failed to send order notifications or update stats:', notificationError);
+        // Don't fail the order creation if notifications fail
     }
 
     return order;
@@ -174,23 +179,30 @@ const updateOrder = async (id, updateData) => {
         runValidators: true,
     });
 
-    // Send email notifications for status changes
+    // Send email & SMS notifications for status changes
     try {
         const user = await User.findById(order.customer);
-        if (user && user.email) {
-            // If status changed, send status update email
+        if (user) {
+            // Status changed notifications
             if (updateData.status && updateData.status !== oldOrder.status) {
-                await sendOrderStatusUpdate(user.email, order);
+                // Email
+                if (user.email) {
+                    await sendOrderStatusUpdate(user.email, order);
+                }
+                // SMS
+                if (user.phone) {
+                    await sendOrderStatusSMS(user.phone, order);
+                }
             }
 
-            // If tracking info added and status is shipped, send shipping notification
-            if (updateData.tracking && updateData.status === 'Shipped') {
+            // Shipping notification (Email only for now or can add SMS too)
+            if (updateData.tracking && updateData.status === 'Shipped' && user.email) {
                 await sendShippingNotification(user.email, order);
             }
         }
-    } catch (emailError) {
-        console.error('Failed to send order update email:', emailError);
-        // Don't fail the update if email fails
+    } catch (notificationError) {
+        console.error('Failed to send order update notifications:', notificationError);
+        // Don't fail the update if notifications fail
     }
 
     return order;
