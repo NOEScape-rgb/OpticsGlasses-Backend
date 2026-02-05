@@ -48,6 +48,7 @@ const getAllProducts = async (queryString) => {
 
     query = query.skip(skip).limit(limit);
 
+    console.log(`[Product Service] Executing find with filter:`, JSON.parse(queryStr));
     const products = await query;
     return products;
 };

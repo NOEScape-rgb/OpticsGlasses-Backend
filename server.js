@@ -10,6 +10,12 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 app.set("trust proxy", 1);
 
+// Simple Request Logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // List of allowed origins - explicitly including both www and non-www
 const allowedOrigins = [
   "https://opticsglasses.vercel.app",

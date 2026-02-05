@@ -27,7 +27,9 @@ const createProductController = async (req, res) => {
 // Get All Products
 const getAllProductsController = async (req, res) => {
     try {
+        console.log(`[Products] GET /api/products called with query:`, req.query);
         const products = await productServices.getAllProducts(req.query);
+        console.log(`[Products] Successfully retrieved ${products.length} products`);
         res.status(200).json({
             isStatus: true,
             results: products.length,
@@ -35,9 +37,11 @@ const getAllProductsController = async (req, res) => {
             data: products,
         });
     } catch (error) {
+        console.error(`[Products] Error in getAllProductsController:`, error);
         res.status(500).json({
             isStatus: false,
             msg: error.message || "Internal Server Error",
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
             data: null,
         });
     }
