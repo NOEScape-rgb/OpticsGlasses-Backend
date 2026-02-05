@@ -12,25 +12,46 @@ app.set("trust proxy", 1); // Trust first proxy (required for Vercel/Heroku cook
 
 const cookieParser = require("cookie-parser");
 
+const allowedOrigins = [
+  process.env.FRONT_END_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "https://optics-glasses-frontend.vercel.app",
+  "https://opticsglasses.vercel.app",
+  "https://www.opticsglasses.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      process.env.FRONT_END_URL,
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:5174",
-      "https://optics-glasses-frontend.vercel.app",
-      "https://opticsglasses.vercel.app",
-      "https://www.opticsglasses.vercel.app",
-      "https://optics-glasses-frontend-git-main-your-username.vercel.app"
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(o => o && origin.startsWith(o))) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked for origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   })
 );
+
+// Add explicit OPTIONS handling for preflight
+app.options("*", cors());
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+
+// Health check / Root route
+app.get("/", (req, res) => {
+  res.json({ status: "success", message: "OpticsGlasses API is running" });
+});
 
 const path = require("path");
 
