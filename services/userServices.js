@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const { signToken, tempToken } = require("../utils/jwt");
 const User = require("../models/User");
 const { sendMail, sendWelcomeEmail, sendPasswordResetEmail, sendOTPEmail } = require('../utils/email');
-const { sendSMS, sendOTPSMS } = require('../utils/sms');
+const { sendSMS, sendOTPSMS, sendWelcomeSMS } = require('../utils/sms');
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -141,7 +141,7 @@ const verifyOTP = async (identifier, otp) => {
   try {
     await Promise.allSettled([
       sendWelcomeEmail(user.email, { name: user.name, email: user.email }),
-      // Optional: sendWelcomeSMS(user.phone, { name: user.name }) if we had one
+      sendWelcomeSMS(user.phone, { name: user.name })
     ]);
   } catch (err) {
     console.error("Welcome notifications failed after verification:", err);

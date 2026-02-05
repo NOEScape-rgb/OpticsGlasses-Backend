@@ -11,26 +11,32 @@ const SMS_GATEWAY_DEVICE_ID = process.env.SMS_GATEWAY_DEVICE_ID;
  * @returns {string} - Formatted phone number with country code
  */
 const formatPhoneNumber = (phoneNumber) => {
-    // Remove any spaces, dashes, or special characters
-    let cleaned = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  if (!phoneNumber) return '';
 
-    // Already has + prefix, return as is
-    if (cleaned.startsWith('+')) {
-        return cleaned;
-    }
+  // Remove any spaces, dashes, or special characters
+  let cleaned = phoneNumber.toString().replace(/[\s\-\(\)]/g, '');
 
-    // Pakistani number starting with 03 -> +92 3
-    if (cleaned.startsWith('03')) {
-        return '+92' + cleaned.substring(1);
-    }
+  // Already has + prefix, return as is
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
 
-    // Already has 92 prefix without +
-    if (cleaned.startsWith('92')) {
-        return '+' + cleaned;
-    }
+  // Pakistani number starting with 03 -> +92 3
+  if (cleaned.startsWith('03')) {
+    return '+92' + cleaned.substring(1);
+  }
 
-    // Default: add + prefix
+  // Already has 92 prefix without +
+  if (cleaned.startsWith('92')) {
     return '+' + cleaned;
+  }
+
+  // Default: add + prefix if it's long enough to be a number with CC
+  if (cleaned.length >= 10) {
+    return '+' + cleaned;
+  }
+
+  return cleaned;
 };
 
 /**
@@ -40,35 +46,63 @@ const formatPhoneNumber = (phoneNumber) => {
  * @returns {Promise<Object>} - API response
  */
 const sendSMS = async (phoneNumber, message) => {
-    try {
-        const authString = Buffer.from(`${SMS_GATEWAY_USER}:${SMS_GATEWAY_PASS}`).toString("base64");
-
-        // Format phone number to international format
-        const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
-        console.log(`Sending SMS to: ${formattedPhoneNumber}`);
-
-        const response = await axios.post(
-            "https://api.sms-gate.app/3rdparty/v1/messages",
-            {
-                textMessage: { text: message },
-                phoneNumbers: [formattedPhoneNumber],
-                deviceId: SMS_GATEWAY_DEVICE_ID,
-            },
-            {
-                headers: {
-                    Authorization: `Basic ${authString}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        console.log(`SMS sent successfully to: ${formattedPhoneNumber}`);
-        return response.data;
-    } catch (error) {
-        console.error("SMS Sending Error:", error.response?.data || error.message);
-        // Don't throw - we want emails to still work even if SMS fails
-        return null;
+  try {
+    if (!SMS_GATEWAY_USER || !SMS_GATEWAY_PASS || !SMS_GATEWAY_DEVICE_ID) {
+      console.warn("⚠️ SMS Gateway credentials are not fully configured in .env");
+      return { success: false, message: 'SMS credentials missing' };
     }
+
+    const authString = Buffer.from(`${SMS_GATEWAY_USER}:${SMS_GATEWAY_PASS}`).toString("base64");
+
+    // Format phone number to international format
+    const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+    console.log(`[SMS] Attempting to send SMS to: ${formattedPhoneNumber}`);
+
+    const response = await axios.post(
+      "https://api.sms-gate.app/3rdparty/v1/messages",
+      {
+        textMessage: { text: message },
+        phoneNumbers: [formattedPhoneNumber],
+        deviceId: SMS_GATEWAY_DEVICE_ID,
+      },
+      {
+        headers: {
+          Authorization: `Basic ${authString}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000 // 10 second timeout
+      }
+    );
+
+    console.log(`✅ [SMS] Sent successfully to: ${formattedPhoneNumber}`);
+    return { success: true, data: response.data };
+  } catch (error) {
+    const errorDetail = error.response?.data || error.message;
+    console.error("❌ [SMS] Sending Error:", errorDetail);
+    return { success: false, error: errorDetail };
+  }
+};
+
+/**
+ * Send OTP SMS
+ * @param {string} phoneNumber 
+ * @param {string} otp 
+ */
+const sendOTPSMS = async (phoneNumber, otp) => {
+  const appName = process.env.APP_NAME || 'Optics Glasses';
+  const message = `Your ${appName} verification code is: ${otp}. It expires in 15 minutes.`;
+  return await sendSMS(phoneNumber, message);
+};
+
+/**
+ * Send welcome SMS
+ * @param {string} phoneNumber 
+ * @param {Object} userData 
+ */
+const sendWelcomeSMS = async (phoneNumber, userData) => {
+  const appName = process.env.APP_NAME || 'Optics Glasses';
+  const message = `Welcome to ${appName}, ${userData.name || 'valued customer'}! 👓 Your account has been verified. Start shopping now!`;
+  return await sendSMS(phoneNumber, message);
 };
 
 /**
@@ -77,8 +111,8 @@ const sendSMS = async (phoneNumber, message) => {
  * @param {Object} orderData 
  */
 const sendOrderConfirmationSMS = async (phoneNumber, orderData) => {
-    const message = `Order Confirmed! Your order ${orderData.orderNumber} for $${orderData.totalAmount} has been received. Thank you for shopping with Optics Glasses!`;
-    return await sendSMS(phoneNumber, message);
+  const message = `Order Confirmed! Your order ${orderData.orderNumber} for $${orderData.totalAmount} has been received. Thank you for shopping with Optics Glasses!`;
+  return await sendSMS(phoneNumber, message);
 };
 
 /**
@@ -87,24 +121,25 @@ const sendOrderConfirmationSMS = async (phoneNumber, orderData) => {
  * @param {Object} orderData 
  */
 const sendOrderStatusSMS = async (phoneNumber, orderData) => {
-    const message = `Order Update: Your order ${orderData.orderNumber} status is now: ${orderData.status}. Check your dashboard for more details.`;
-    return await sendSMS(phoneNumber, message);
+  const message = `Order Update: Your order ${orderData.orderNumber} status is now: ${orderData.status}. Check your dashboard for more details.`;
+  return await sendSMS(phoneNumber, message);
 };
 
-const sendOTPSMS = async (phoneNumber, otp) => {
-    const message = `Your Optics Glasses verification code is: ${otp}. It expires in 15 minutes.`;
-    return await sendSMS(phoneNumber, message);
-};
-
+/**
+ * Send shipping update SMS
+ * @param {string} phoneNumber 
+ * @param {Object} orderData 
+ */
 const sendShippingSMS = async (phoneNumber, orderData) => {
-    const message = `Great news! Your order #${orderData.orderNumber} has been shipped. Tracking: ${orderData.tracking}. View details in your account.`;
-    return await sendSMS(phoneNumber, message);
+  const message = `Great news! Your order #${orderData.orderNumber} has been shipped. Tracking: ${orderData.tracking}. View details in your account.`;
+  return await sendSMS(phoneNumber, message);
 };
 
 module.exports = {
-    sendSMS,
-    sendOrderConfirmationSMS,
-    sendOrderStatusSMS,
-    sendOTPSMS,
-    sendShippingSMS,
+  sendSMS,
+  sendOTPSMS,
+  sendWelcomeSMS,
+  sendOrderConfirmationSMS,
+  sendOrderStatusSMS,
+  sendShippingSMS,
 };

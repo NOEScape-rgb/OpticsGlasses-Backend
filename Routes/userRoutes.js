@@ -15,7 +15,34 @@ const {
   resendOTPController
 } = require("../controllers/userController");
 const { verifyToken, verifyUser, verifyAdminToken } = require("../middleware/authMiddleware");
+const express = require("express");
+const router = express.Router();
+const userController = require("../controllers/userController");
+const { authenticate } = require("../middleware/auth");
 
+// Public routes
+router.post("/signup", userController.createUserController);
+router.post("/login", userController.getUserController);
+router.post("/logout", userController.logoutController);
+router.post("/forgot-password", userController.forgotPasswordController);
+router.post("/reset-password", userController.resetPasswordUserController);
+
+// OTP verification routes
+router.post("/verify-otp", userController.verifyOTPController);
+router.post("/resend-otp", userController.resendOTPController);
+
+// Protected routes (require authentication)
+router.use(authenticate); // All routes below require authentication
+
+router.get("/profile", userController.getProfileController);
+router.patch("/update-me", userController.updateMeController);
+router.patch("/change-password", userController.changePasswordController);
+router.patch("/:username", userController.updateUserController);
+
+// Admin routes
+router.get("/", userController.getAllUsersController);
+
+module.exports = router;
 /**
  * @route   POST /api/users/signup
  * @desc    Register a new user
