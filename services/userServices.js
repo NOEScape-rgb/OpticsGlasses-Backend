@@ -61,9 +61,48 @@ const createUser = async ({ email, password, name, phone }) => {
   });
 
   if (existingUser) {
-    if (existingUser.email === email) throw new Error("Email already registered");
-    if (existingUser.phone === phone) throw new Error("Phone number already registered");
-    throw new Error("User already exists");
+    // If the user is already verified, we cannot allow reuse of email/phone
+    if (existingUser.isVerified) {
+      if (existingUser.email === email) throw new Error("Email already registered");
+      if (existingUser.phone === phone) throw new Error("Phone number already registered");
+      throw new Error("User already exists");
+    }
+
+    // User exists but is NOT verified. We will overwrite the existing entry.
+    // This allows users who messed up verification to try again.
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    existingUser.name = name;
+    existingUser.password = hashedPassword;
+    existingUser.otp = otp;
+    existingUser.otpExpires = otpExpires;
+
+    // Ensure we update both fields just in case they switched one
+    existingUser.email = email;
+    existingUser.phone = phone;
+
+    await existingUser.save();
+
+    // Send notifications for the updated unverified user
+    try {
+      const promises = [];
+      if (existingUser.email) promises.push(sendOTPEmail(existingUser.email, otp));
+      if (existingUser.phone) promises.push(sendOTPSMS(existingUser.phone, otp));
+      await Promise.allSettled(promises);
+    } catch (err) {
+      console.error('Failed to send OTP notifications (retry):', err);
+    }
+
+    return {
+      user: {
+        id: existingUser._id,
+        email: existingUser.email,
+        name: existingUser.name,
+        phone: existingUser.phone,
+      },
+    };
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
