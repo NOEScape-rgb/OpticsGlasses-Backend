@@ -48,8 +48,8 @@ app.use(
   })
 );
 
-// Explicit OPTIONS preflight handling
-app.options("*", cors());
+// CORS middleware above handles preflight requests globally
+// app.options("/*", cors());
 
 app.use(express.json());
 app.use(cookieParser());
