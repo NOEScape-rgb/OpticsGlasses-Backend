@@ -21,20 +21,33 @@ const getStoreConfig = async () => {
 const updateStoreConfig = async (updateData) => {
     console.log('UPDATING STORE CONFIG WITH:', JSON.stringify(updateData, null, 2));
 
-    // Flatten nested objects to use dot notation for partial updates
-    const flatten = (obj, prefix = '') => {
-        return Object.keys(obj).reduce((acc, key) => {
-            const pre = prefix.length ? prefix + '.' : '';
-            if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-                Object.assign(acc, flatten(obj[key], pre + key));
-            } else {
-                acc[pre + key] = obj[key];
-            }
-            return acc;
-        }, {});
-    };
+    let finalUpdate = {};
 
-    const finalUpdate = flatten(updateData);
+    // Partially update cms object if present to prevent overwriting sub-objects
+    if (updateData.cms) {
+        const cms = updateData.cms;
+        if (cms.hero) {
+            Object.keys(cms.hero).forEach(key => finalUpdate[`cms.hero.${key}`] = cms.hero[key]);
+        }
+        if (cms.promo) {
+            Object.keys(cms.promo).forEach(key => finalUpdate[`cms.promo.${key}`] = cms.promo[key]);
+        }
+        if (cms.featuredLimit !== undefined) {
+            finalUpdate['cms.featuredLimit'] = cms.featuredLimit;
+        }
+        if (cms.heroSlides) {
+            finalUpdate['cms.heroSlides'] = cms.heroSlides;
+        }
+    }
+
+    // Handle other top-level fields (shipping, storeProfile, seo)
+    ['storeProfile', 'shipping', 'seo', 'paymentMethods'].forEach(field => {
+        if (updateData[field]) {
+            Object.keys(updateData[field]).forEach(key => {
+                finalUpdate[`${field}.${key}`] = updateData[field][key];
+            });
+        }
+    });
 
     const store = await Store.findOneAndUpdate({}, { $set: finalUpdate }, {
         new: true,
@@ -43,7 +56,7 @@ const updateStoreConfig = async (updateData) => {
         setDefaultsOnInsert: true
     });
 
-    console.log('UPDATED STORE DOCUMENT CMS:', JSON.stringify(store.cms, null, 2));
+    console.log('UPDATED STORE DOCUMENT:', JSON.stringify(store, null, 2));
     return store;
 };
 
