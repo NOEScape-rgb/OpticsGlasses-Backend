@@ -48,8 +48,7 @@ app.use(
   })
 );
 
-// Explicit preflight handling for all routes
-app.options("*", cors());
+// Note: cors() middleware already handles OPTIONS preflight requests automatically
 
 // Add no-cache headers to prevent browsers from caching auth failures
 app.use((req, res, next) => {
