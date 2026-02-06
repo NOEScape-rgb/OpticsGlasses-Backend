@@ -21,48 +21,54 @@ const getStoreConfig = async () => {
 const updateStoreConfig = async (updateData) => {
     console.log('UPDATING STORE CONFIG WITH:', JSON.stringify(updateData, null, 2));
 
-    let store = await Store.findOne();
-    if (!store) {
-        store = new Store();
-    }
+    // Flatten nested object to dot notation for MongoDB $set
+    // e.g., { cms: { promo: { isMarquee: true } } } becomes { 'cms.promo.isMarquee': true }
+    const flattenObject = (obj, prefix = '') => {
+        const result = {};
 
-    // Deep merge updateData into store document using Mongoose's set() method
-    // This ensures proper change detection for nested objects
-    const deepMergeWithSet = (basePath, source) => {
-        for (const [key, value] of Object.entries(source)) {
-            const fullPath = basePath ? `${basePath}.${key}` : key;
+        for (const [key, value] of Object.entries(obj)) {
+            const newKey = prefix ? `${prefix}.${key}` : key;
 
             if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-                // Recursively handle nested objects
-                deepMergeWithSet(fullPath, value);
+                // Recursively flatten nested objects
+                Object.assign(result, flattenObject(value, newKey));
             } else {
-                // Use Mongoose's set() for proper change detection
-                store.set(fullPath, value);
+                // Add leaf values directly
+                result[newKey] = value;
             }
         }
+
+        return result;
     };
 
-    deepMergeWithSet('', updateData);
+    const flattenedUpdate = flattenObject(updateData);
+    console.log('FLATTENED UPDATE:', JSON.stringify(flattenedUpdate, null, 2));
 
-    // Mark all potentially modified nested paths to ensure Mongoose saves them
-    if (updateData.cms) {
-        store.markModified('cms');
-    }
-    if (updateData.storeProfile) {
-        store.markModified('storeProfile');
-    }
-    if (updateData.shipping) {
-        store.markModified('shipping');
-    }
-    if (updateData.seo) {
-        store.markModified('seo');
-    }
-    if (updateData.paymentMethods) {
-        store.markModified('paymentMethods');
-    }
+    // Use findOneAndUpdate with $set for reliable atomic updates
+    let store = await Store.findOneAndUpdate(
+        {}, // Match the single store document (singleton pattern)
+        { $set: flattenedUpdate },
+        {
+            new: true, // Return the updated document
+            upsert: true, // Create if doesn't exist
+            runValidators: true, // Run model validations
+            setDefaultsOnInsert: true // Set defaults if creating new
+        }
+    );
 
-    // Save with validation
-    await store.save();
+    // If store was newly created, set required defaults
+    if (!store.storeProfile || !store.storeProfile.name) {
+        store = await Store.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    'storeProfile.name': 'OpticsGlasses',
+                    'storeProfile.email': 'admin@opticsglasses.com'
+                }
+            },
+            { new: true }
+        );
+    }
 
     console.log('RESULTING STORE CONFIG CMS:', JSON.stringify(store.cms, null, 2));
     return store;
