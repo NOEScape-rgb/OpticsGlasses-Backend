@@ -86,6 +86,9 @@ const storeSchema = new mongoose.Schema(
         text: { type: String, trim: true, maxlength: 200 },
         bgColor: { type: String, default: "#000000", trim: true },
         textColor: { type: String, default: "#FFFFFF", trim: true },
+        alertColor: { type: String, default: "#ff4d4d", trim: true },
+        isMarquee: { type: Boolean, default: false },
+        speed: { type: Number, default: 20 },
         active: { type: Boolean, default: false },
       },
       featuredLimit: {
