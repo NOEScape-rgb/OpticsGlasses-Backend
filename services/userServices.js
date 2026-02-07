@@ -56,15 +56,30 @@ const reset = async (userId, password) => {
 
 // Create new user (Signup)
 const createUser = async ({ email, password, name, phone }) => {
+  // Normalize phone number to ensure consistency
+  let normalizedPhone = phone.replace(/\D/g, '');
+
+  if (normalizedPhone.startsWith('92')) {
+    normalizedPhone = '+' + normalizedPhone;
+  } else if (normalizedPhone.startsWith('03')) {
+    normalizedPhone = '+92' + normalizedPhone.substring(1);
+  } else if (normalizedPhone.length === 10 && normalizedPhone.startsWith('3')) {
+    normalizedPhone = '+92' + normalizedPhone;
+  }
+
+  if (!normalizedPhone.startsWith('+')) {
+    normalizedPhone = '+' + normalizedPhone;
+  }
+
   const existingUser = await User.findOne({
-    $or: [{ email }, { phone }],
+    $or: [{ email }, { phone: normalizedPhone }],
   });
 
   if (existingUser) {
     // If the user is already verified, we cannot allow reuse of email/phone
     if (existingUser.isVerified) {
       if (existingUser.email === email) throw new Error("Email already registered");
-      if (existingUser.phone === phone) throw new Error("Phone number already registered");
+      if (existingUser.phone === normalizedPhone) throw new Error("Phone number already registered");
       throw new Error("User already exists");
     }
 
@@ -81,7 +96,7 @@ const createUser = async ({ email, password, name, phone }) => {
 
     // Ensure we update both fields just in case they switched one
     existingUser.email = email;
-    existingUser.phone = phone;
+    existingUser.phone = normalizedPhone;
 
     await existingUser.save();
 
@@ -112,7 +127,7 @@ const createUser = async ({ email, password, name, phone }) => {
   const user = await User.create({
     email,
     name,
-    phone,
+    phone: normalizedPhone,
     password: hashedPassword,
     otp,
     otpExpires,

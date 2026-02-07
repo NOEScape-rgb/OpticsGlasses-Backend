@@ -54,7 +54,13 @@ const createOrder = async (orderData) => {
         try {
             const updates = {};
             if (shippingAddress) updates.shippingAddress = shippingAddress;
-            if (orderData.phone) updates.phone = orderData.phone;
+            if (orderData.phone) {
+                let p = orderData.phone.replace(/\D/g, '');
+                if (p.startsWith('92')) p = '+' + p;
+                else if (p.startsWith('03')) p = '+92' + p.substring(1);
+                else if (p.length === 10 && p.startsWith('3')) p = '+92' + p;
+                updates.phone = p;
+            }
 
             if (Object.keys(updates).length > 0) {
                 await User.findByIdAndUpdate(

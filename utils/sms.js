@@ -82,7 +82,11 @@ const sendSMS = async (phoneNumber, message) => {
     return { success: true, data: response.data };
   } catch (error) {
     const errorDetail = error.response?.data || error.message;
-    console.error("❌ [SMS] Sending Error:", errorDetail);
+    console.error("❌ [SMS] Sending Error Full Details:", JSON.stringify(errorDetail, null, 2));
+    if (error.response) {
+      console.error("❌ [SMS] Status Code:", error.response.status);
+      console.error("❌ [SMS] Headers:", JSON.stringify(error.response.headers, null, 2));
+    }
     return { success: false, error: errorDetail };
   }
 };
