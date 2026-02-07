@@ -67,6 +67,23 @@ const storeSchema = new mongoose.Schema(
         maxlength: 100,
       },
     },
+    tax: {
+      rate: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0,
+      },
+      label: {
+        type: String,
+        default: "Tax",
+        trim: true,
+      },
+      active: {
+        type: Boolean,
+        default: true
+      }
+    },
     cms: {
       hero: {
         title: { type: String, trim: true, maxlength: 150 },

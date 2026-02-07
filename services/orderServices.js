@@ -115,7 +115,21 @@ const createOrder = async (orderData) => {
     }
 
     // 4. Calculate Final Total
-    const tax = 0;
+    // Fetch tax rate from store config
+    const taxConfig = storeConfig?.tax || { rate: 0, active: false };
+    let tax = 0;
+
+    // Tax is usually applied on the subtotal.
+    // Some regions apply on (subtotal - discount), others on subtotal.
+    // We will apply on (subtotal - discount) as it's more customer friendly.
+    if (taxConfig.active) {
+        const taxableAmount = Math.max(0, calculatedSubtotal - discount);
+        tax = (taxableAmount * taxConfig.rate) / 100;
+    }
+
+    // Round tax to 2 decimal places
+    tax = Math.round(tax * 100) / 100;
+
     const total = Math.max(0, calculatedSubtotal + tax + shippingCost - discount);
 
     // 5. Create Order

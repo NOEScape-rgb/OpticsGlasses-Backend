@@ -33,6 +33,10 @@ const formatPhoneNumber = (phoneNumber) => {
 
   // Default: add + prefix if it's long enough to be a number with CC
   if (cleaned.length >= 10) {
+    // Logic for Pakistan (users often enter 3001234567 without 0)
+    if (cleaned.length === 10 && cleaned.startsWith('3')) {
+      return '+92' + cleaned;
+    }
     return '+' + cleaned;
   }
 
